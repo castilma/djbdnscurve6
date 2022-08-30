@@ -1,0 +1,104 @@
+Installation
+------------
+
+Step 1: 
+
+* Install DJB's daemontools (optional) and setup 
+	/package and
+	/service directory 
+  if you want to use djbdnscurve6 using svc.
+	[http://cr.yp.to/daemontools.html]
+* Install NaCl; recommended under /usr/local
+	[http://nacl.cr.yp.to]
+* NaCl is included in libsodium as well:
+  [https://libsodium.gitbook.io/doc/]
+  to be used alternatively.
+* Installation of djbdnscurve6 in a VM requires
+	libsodium instead of NaCl.
+* Install qlibs; recommended under /usr/local
+
+Step 2:
+
+* Untar djbdnscurve6-XYZ under /package
+  cd to net/djbdnscurve6 and the respective subdir
+
+Step 3: 
+
+* Customize djbdnscurve6 
+  - conf-home: where to place binaries
+  - conf-qlibs: where the qlibs are located
+  - conf-nacl: where to find the NACL modules
+		Attention: Check 'hostname' and 'arch' in path
+			and adjust to your local settings
+
+* If required, you can adjust
+  - conf-cc for compiler settings
+  - conf-ld for loader settings
+  - conf-man for man-page location
+
+* Services are initially configured editing
+   -conf-dnscache: setting up dnscache; /var/service/dnscache @ ::1 - enabled
+   -conf-tinydns: setting up tinydns; disabled
+   -conf-rbldns: setting up rbldns; disabled
+   -conf-walldns: setting up walldns; disabled
+   -conf-axfrdns: is still a dummy
+
+   You have to specify each:
+   - a userid for service
+   - a service directory
+   - a log-userid
+   - an IP address to bind to
+
+* Binaries are usually installed at
+   - /usr/local/bin
+
+* Service directories are assumed to exist at:
+   - /var/service/XXX
+
+   both are customizable.
+   Given the ./run script, the service directory 
+   needs to be able to support executables.
+  
+Step 4:
+
+* Execute
+  - package/install
+
+* or using individual steps
+  - package/compile
+  - package/upgrade
+  - package/legacy
+  - package/man
+  - package/service (for conf-XX services)
+
+* If you are not planning to use
+  - dnscache
+  - tinydns
+  - rbldns
+  - walldns
+
+  under supervise; don't apply
+  the respective XX-conf executables
+  but rather use customized run scripts
+  and feed the required environment
+  variables and uid settings manually;
+  not to forget to care about logging.
+
+Step 5:
+
+* Call
+  - curvedns-keygen
+
+  in each service home directory (ie. tinydns)
+  to generate the public and private keys under
+
+  - ./env
+
+* Use the generated public key name of your
+  service as hostname for your DNS service 
+  and use it as delegated NS anchor.
+  
+
+Read the man pages!
+
+Erwin Hoffmann; July 2022

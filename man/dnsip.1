@@ -1,0 +1,43 @@
+.TH djbdnscurve6: dnsip 1
+.SH NAME
+dnsip \- recursive lookup of IP addresses for fqdn
+.SH SYNOPSIS
+dnsip 
+[
+.I fqdn
+]
+.SH DESCRIPTION
+.B dnsip
+prints the retrieved IPv6 and the IPv4 addresses for
+.I fqdn
+, starting with the IPv6 addresses.
+If 
+.I fqdn
+does not exist, 
+.B dnsip
+prints an empty line.
+You can list several  
+.IR fqdn s;
+
+.B dnsip
+prints each result on a separate line.
+
+Normally 
+.B dnsip
+exits 0.
+If 
+.B dnsip
+encounters a temporary problem
+that prevents it from determining the list of IP addresses,
+it prints an error message and exits 111.
+The same comments apply to the other programs described here.
+.SH "SEE ALSO"
+dnsipq(1),
+dnsname(1),
+dnsmx(1),
+dnstxt(1),
+dnsqr(1),
+dnsq(1),
+dnstrace(1)
+.SH REFERENCE
+http://cr.yp.to/djbdns.html

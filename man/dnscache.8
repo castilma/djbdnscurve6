@@ -1,0 +1,440 @@
+.TH djbdnscurve6: dnscache 8
+.SH NAME
+dnscache \- DNS cache server and iterative resolver
+.SH DESCRIPTON
+.B dnscache
+accepts recursive DNS queries
+from local clients such as web browsers and mail transfer agents.
+It collects responses from remote DNS servers.
+It caches the responses for faster client lookup.
+
+Upon sending iterative queries
+.B dnscache
+will use the received FQDN of authoritive name servers to
+evalute their potential usage for
+encryption in case the hostname starts with
+.IR uz5 .
+Subsequently 
+.B dnscache
+will automatically encrypt queries to those servers 
+identified to be DNSCurve capable.
+Now, both queries and responses are encrypted 
+using either the propriatory
+.I DNSCurve stream
+format, or if the environment variable
+.I $USETXTFORMAT
+is set, the less performant 
+.I TXT 
+format to cope with deep packet 
+inspecting Firewalls analysing DNS 
+traffic and expecting a standard DNS header.
+
+In case the name server does not
+respond to encrypted UDP queries, 
+.B dnscache 
+falls back to unencrypted queries.
+
+.B dnscache
+may be used in a
+.I forward only 
+mode. 
+.SH "CONFIGURATION"
+Normally 
+.B dnscache
+is set up by the
+.B dnscache-conf
+program.
+
+.B dnscache
+runs chrooted in the directory
+specified by the 
+.I $ROOT
+environment variable,
+under the uid and gid
+specified by the 
+.I $UID
+and 
+.I $GID
+environment variables.
+In case 
+.I $USETEXTFORMAT
+is set, 
+.B dnscache
+will send queries even for DNSCurve
+enabled name servers using standard
+.I DNS TXT 
+headers.
+
+.B dnscache
+can be adviced to go to unencrypted fallback mode, 
+if hostname of the name server starts with 
+.I uz5
+but don't respond to encrypted UDP queries
+for this lookup.
+This behavior can be changed using the 
+environment variable
+.IR UZ5FALLBACK=n .
+A value like
+.I n=1
+might impact correctly behaving DNSCurve
+name servers which do not respond to the
+initial query, while larger values like
+.I n=3
+delays name resolution for those name
+servers significantly. 
+Setting
+.I UZ5FALLBACK=0
+disables fallback mode, which is the default.
+
+The value
+.I UZ5FALLBACK=2
+is initally set-up by
+.BR dnscache-conf .
+
+.SH "BINDINGS"
+.B dnscache
+listens for incoming UDP packets and TCP connections
+addressed to port 53 for
+.IR $IP ,
+which could be either an IPv4 or IPv6 scoped addresss, 
+supporting both public or internal access.
+
+Given a host scope, one typically uses the addresses
+.IR 127.0.0.1 ,
+.IR ::1 , 
+or 
+.IR fe80::1%lo0 .
+In those cases,
+.B dnscache
+serves the own host only.
+
+Setting up 
+.B dnscache
+on a private network requires private IPv4 addresses;
+while for IPv6 ULA and LLU addresses can be used. Examples:
+.IR 10.10.10.53 ,
+.IR fd00::53 ,
+.IR fe80::53%eth0 .
+
+.B dnscache 
+is able to serve all existing IP addresses on the host (multi-homing).
+For IPv4 specify
+.I 0.0.0.0
+and for IPv6 set 
+.I ::
+within
+.IR env/IP .
+
+In case of 
+.I :: 
+.B dnscache 
+additionally supports reverse anycasting for IPv6.  Now,
+.B dnscache 
+will accept IPv6 packets from every available interface,
+even if dynamically allocated.
+
+.B dnscache 
+forces simultaneous bind to IPv4 and IPv6 addresses
+in case a 'pseudo' IP address is specified as
+.IR :0 .
+However, this will not trigger reverse anycasting support.
+
+.B dnscache
+sends outgoing packets from high ports of 
+.IR $IPSEND .
+Typically 
+.I $IPSEND
+is 
+.I 0.0.0.0 
+or
+.I ::
+meaning the machine's primary IP address
+covering both IPv4 and IPv6.
+However, a specific sending IP address can be used,
+which might be destinct from the receiving ones. 
+.SH "FOWARDING MODE"
+If
+.I $FORWARDONLY
+is set,
+.B dnscache
+treats
+.I servers/@
+as a list of IP addresses
+for other caches, not root servers.
+It forwards queries to those caches.
+It does not contact the root servers, 
+or any other DNS servers, directly.
+.SH "CLIENT QUALIFICATION"
+.B dnscache
+accepts a packet or connection
+from the IPv4 address
+.I 1.2.3.4
+if it sees a file named
+.I ip/1.2.3.4
+or
+.I ip/1.2.3
+or
+.I ip/1.2
+or
+.IR ip/1 .
+For IPv6 addresses
+.B dnscache
+can be instructed in a similar way:
+.IR ip/2001::fefe ,
+.IR ip/2001:a:b:c:d ,
+.IR ip/2001 ,
+.I ip/fe80 
+(all LLU),
+.I ip/fd00 
+(all ULA).
+
+.B dnscache
+will reject packets or connections
+from IP addresses marked as 'commented out':
+.IR ip/#2001::fec ,
+.IR ip/#192.168.1 .
+Rejections have precedence over acceptance.
+ Note: In any case, the delimiter
+(either '.' or ':') shall not be used as last character.
+.SH "SERVER QUALIFICATION"
+If
+.B dnscache
+recognizes the environment variable
+.IR $FLAGEDSERVER ,
+name server listed under
+.I ip/
+are treated in the following way:
+Servers included as
+.I ip/%1.2.3.4 
+or 
+.I ip/%2001::a:b:c:d
+and given their dotted-decimal IPv4
+or compactified IPv6 addresses are omitted 
+for name resolution in case the IP address
+is prepended with a
+.IR % .
+If the IP addresses is prepended with a
+.IR - ,
+rather instead of a DNSCurve query a standard
+query will be used, irrespectively if the 
+server's FQDN starts with the magic 
+.IR uz5 .
+Example:
+
+In case
+.I $IP4 
+is set,
+.B dnscache
+will contact only nameserves given their IPv4 address.
+
+.SH "ROOT SERVERS"
+.B dnscache
+reads a seed, up to 128 bytes,
+from standard input,
+and passes the seed to
+.BR dns_random_init .
+
+.B dnscache
+reads a list of root server given as dotted-decimal IPv4 
+and/or compactified IPv6 addresses one per line 
+from the file
+.IR servers/@ .
+
+A total of 32 names servers is handled, which are
+specified in dotted-decimal IPv4 or compactified IPv6 format.  
+Name severs specified by their IPv6 LLU addresses need to 
+include the interface name via those they are reachable.
+
+.B dnscache
+also scans the 
+.I servers
+directory
+for server IP addresses for other domains.
+If there are addresses listed in 
+.IR servers/moon.af.mil ,
+for example,
+then 
+.B dnscache
+will send queries for 
+.I anything.moon.af.mil
+to those addresses,
+and will not cache records for 
+.I anything.moon.af.mil
+from outside servers such as the root servers.
+.SH "MEMORY USE"
+.B dnscache
+uses a fixed-size table, under 512K,
+to keep track of as many as 400 simultaneous UDP queries
+and 40 simultaneous TCP connections.
+It also dynamically allocates memory,
+usually just a few bytes but occasionally much more,
+for each active query.
+If it runs out of memory handling a query, it discards that query.
+
+.B dnscache
+asks the operating system to reserve a 128K buffer
+for bursts of incoming UDP queries.
+If a new UDP query arrives
+when
+.B dnscache
+is already handling 400 simultaneous UDP queries,
+.B dnscache
+drops the oldest query.
+If a new TCP connection arrives
+when
+.B dnscache
+is already handling 40 simultaneous TCP connections,
+.B dnscache
+drops the oldest connection.
+
+.B dnscache
+uses a fixed-size cache,
+as controlled by the 
+.I $CACHESIZE
+environment variable.
+Roughly 5% of the cache is used for a hash table.
+The rest is used for cache entries
+(including 8-byte Y2038-compliant expiration times):
+
+.TP
+o
+A sets.
+22 bytes plus 4 bytes per address plus the length of the owner name.
+.TP
+o
+AAAA sets.
+22 bytes plus 16 bytes per address plus the length of the owner name.
+.TP
+o
+NS sets or PTR sets or CNAME sets.
+22 bytes plus the length of the owner name and all the data names.
+.TP
+o
+MX sets.
+22 bytes plus 2 bytes per MX plus the length of all the names.
+.TP
+o
+Other record sets.
+22 bytes plus 2 bytes per record
+plus the length of all the data strings
+plus the length of the owner name.
+.TP
+o
+Nonexistent domain or server failure.
+22 bytes plus the length of the owner name.
+
+.P
+Sets larger than 8192 bytes are not cached.
+
+.B dnscache
+does not exit when it runs out of space in its cache;
+it simply removes the oldest entries to make more space.
+.SH "MESSAGE SIZES"
+.B dnscache 
+is expecting to be used on IPv6 capabable networks
+supporting a 'minimum length' MLMTU size of 1280 byte (RFC 8200)
+allowing larger UDP packet sizes than for IPv4 only.
+Upon start,
+.B dnscache 
+shows the UDP message size supported by default.
+In addition,
+.B dnscache
+understands EDNS(0) extensions in DNS messages (RFC 6891), 
+typically used by DNSSEC.
+.SH "RESOLUTION AND CACHING POLICIES"
+.B dnscache
+relies on a configured list of root name servers.
+However, the IP addresses of the Internet root servers are subject of change.
+
+.B dnscache
+does not cache (or pass along) records outside the server's bailiwick;
+those records could be poisoned.
+Records for 
+.IR foo.dom ,
+for example,
+are accepted only from the root servers,
+the 
+.I dom
+servers, and the 
+.I foo.dom
+servers.
+
+.B dnscache
+does not bypass its cache
+to obtain glue from the additional section of a response.
+In particular, it will not use glue outside the server's bailiwick,
+or glue with TTL 0,
+or glue that violates other caching policies.
+
+.B dnscache
+caches records for at most a week.
+It interprets TTLs above 2147483647 as 0.
+
+.B dnscache
+does not cache SOA records.
+However, it does use SOA TTLs to determine cache times (up to an hour)
+for zero-record responses and nonexistent domains.
+.SH "RESPONSES TO QUERIES"
+.BR dnscache 's
+responses are generally much smaller than BIND's responses.
+They do not include authority records
+(NS records of the source name servers
+and SOA records for negative answers)
+or additional records
+(A records relevant to NS or MX records).
+When the answer section is truncated by UDP length limits,
+it is eliminated entirely.
+
+.B dnscache
+tries to prevent local users from snooping on other local users.
+It discards non-recursive queries;
+it discards inverse queries;
+and it discards zone-transfer requests.
+If
+.I $HIDETTL
+is set,
+.B dnscache
+always uses a TTL of 0 in its responses.
+
+According to RFC 1035,
+the AA bit ``specifies that the responding name server 
+is an authority for the domain name in question section.''
+
+.B dnscache
+is not an authority for any domain names.
+
+.B dnscache
+never sets the AA bit
+(except in NXDOMAIN responses, as required by RFC 2308,
+to work around a common client bug).
+In contrast, BIND often sets AA for positive responses
+even when it is not an authority for the domain name.
+.SH "SPECIAL NAMES"
+.B dnscache
+handles 
+.I localhost
+internally,
+giving it an A record of 127.0.0.1.
+In addition, for the IPv6 address ::1
+it considers those as
+.I ipv6-localhost 
+together with the respective AAAA record.
+.B dnscache
+handles 
+.I 1.0.0.127.in-addr.arpa
+and
+.I 1.0.0...0.ip6.arpa
+internally,
+giving it a PTR record of 127.0.0.1 and ::1 respectively.
+
+.B dnscache
+handles dotted-decimal domain names internally,
+giving (e.g.) the domain name 
+.I 192.48.96.2
+an A record of 
+.IR 192.48.96.2 .
+.SH "SEE ALSO"
+dnscache-conf(8),
+dnscache-log(5)
+.SH REFERENCE
+http://cr.yp.to/djbdns.html

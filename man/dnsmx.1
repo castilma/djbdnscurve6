@@ -1,0 +1,21 @@
+.TH djbdnscurve6: dnsmx 1
+.SH NAME
+dnsmx \- recursive lookup of MX records for fqdn
+.SH SYNOPSIS
+.B dnsmx
+.I fqdn
+.SH DESCRIPTION
+If there are no MX records,
+.B dnsmx
+prints an artificial MX record,
+simulating the behavior of MTAs.
+.SH SEE ALSO
+dnsip(1),
+dnsname(1),
+dnsipq(1),
+dnstxt(1),
+dnsqr(1),
+dnsq(1),
+dnstrace(1)
+.SH REFERENCE
+http://cr.yp.to/djbdns.html

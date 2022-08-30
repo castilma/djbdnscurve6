@@ -1,0 +1,14 @@
+/usr/local/nacl-20110221/build/HOSTNAME/include/ARCH
+/usr/local/nacl-20110221/build/HOSTNAME/lib/ARCH
+
+# For NaCL:
+# Replace HOSTNAME with the `hostname` 
+# and 'ARCH' with your HW architecture listed in that path;
+# typically 'amd64' or 'x86' 
+
+/usr/local/include/sodium
+/usr/local/lib
+
+# For libsodium:
+# use these two lines for libsodium; if installed at default location
+# In the Makefile you need to spot '-lnacl' and replace it with '-lsodium'.

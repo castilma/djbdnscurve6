@@ -1,0 +1,805 @@
+.TH djbdnscurve6: tinydns-data 8
+.SH NAME
+tinydns-data \- data tool for tinydns
+.SH DESCRIPTION
+.B tinydns-data
+reads local DNS information
+from a file named 
+.I data
+in the current directory.
+It creates 
+.I data.cdb
+in a binary format designed for
+fast access by 
+.BR tinydns .
+It may also create some other files
+with names beginning with 
+.IR data .
+
+.B tinydns-data
+updates 
+.I data.cdb
+atomically,
+so you can use it safely while 
+.B tinydns 
+is running.
+If anything goes wrong with the creation of 
+.IR data.cdb ,
+.B tinydns-data
+stops and leaves the old 
+.I data.cdb
+in place.
+.SH Data format
+The DNS information in 
+.I data
+is a series of lines.
+There are several types of lines, as shown below.
+
+Each line starts with a special character
+and continues with a series of vertical-bar separated fields.
+In some cases the fields may be omitted;
+however, all vertical-bars must be included except at the end of the line.
+Spaces and tabs at the end of a line are ignored.
+
+Each line contains a
+.I ttl
+(``time to live'')
+specifying the number of seconds that the line's DNS records may be cached.
+Beware that cache times below 300 seconds
+will be treated as 300 by some clients,
+and NS cache times below 2 seconds can cause lookup failures.
+You may omit
+.IR ttl ;
+
+.B tinydns-data
+will use default cache times,
+carefully selected to work well in normal situations.
+
+You may include a timestamp on each line.
+If
+.I ttl
+is nonzero (or omitted),
+the timestamp is a starting time
+for the information in the line;
+the line will be ignored before that time.
+If 
+.I ttl
+is zero,
+the timestamp is an ending time (``time to die'')
+for the information in the line;
+
+.BR tinydns 
+dynamically adjusts 
+.I ttl
+so that the line's DNS records are not cached for more than a few seconds
+past the ending time.
+A timestamp is an
+external TAI64 timestamp,
+printed as 16 lowercase hexadecimal characters.
+For example, the lines
+
+.EX
+  +www.heaven.af.mil|1.2.3.4|0|4000000038af1379
+  +www.heaven.af.mil|1.2.3.7||4000000038af1379
+.EE
+
+specify that 
+.I www.heaven.af.mil
+will have address 
+.I 1.2.3.4
+until time 
+.I 4000000038af1379
+(2000-02-19 22:04:31 UTC)
+and will then switch to IP address 
+.IR 1.2.3.7 .
+
+A ``split-horizon'' mode is supported specifying client locations by
+.B %
+lines:
+
+.EX
+	%\fIlo\fR:\fIipprefix\fR
+.EE
+
+means that IP addresses starting with
+.I ipprefix
+are in location
+.IR lo .
+.I lo
+is a sequence of one or two ASCII letters.
+A client is in only one location;
+longer prefixes override shorter prefixes.
+For example,
+
+.EX
+	%in:192.168
+	%ex
+	+jupiter.heaven.af.mil|192.168.1.2|||in
+	+jupiter.heaven.af.mil|1.2.3.4|||ex
+.EE
+
+specifies that
+.I jupiter.heaven.af.mil
+has address
+.I 192.168.1.2
+for clients in the
+.I 192.168.*
+network
+and address
+.I 1.2.3.4
+for everyone else.
+.SH Common data lines
+.TP 4
+=>
+.RI \.fqdn\fR|\fIip\fR|\fIx\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+Name server for our domain 
+.IR fqdn .
+
+.B tinydns-data
+creates
+.IP
+an NS record
+showing 
+.IR x .ns.\fIfqdn\fR
+as a name server for
+.IR fqdn 
+and
+.P
+.IP
+an A record showing
+.I ip
+as its IPv4 address or
+an AAAA record showing
+.I ip
+as the IPv6 address of
+.IR x\fR.ns.\fIfqdn ;
+and
+.P
+.IP
+an SOA record for 
+.I fqdn
+listing 
+.IR x\fR.ns.\fIfqdn\fR
+as the primary name server
+and hostmaster@\fIfqdn\fR
+as the contact address.
+.P
+
+You may have several name servers for one domain,
+with a different 
+.I x
+for each server.
+
+.BR tinydns 
+will return only one SOA record per domain.
+
+If
+.I x
+contains a dot
+then 
+.B tinydns-data
+will use 
+.I x
+as the server name
+rather than 
+.IR x\fR.ns.\fIfqdn\fR .
+This feature is provided only for compatibility reasons;
+names not ending with
+.I fqdn
+will force clients to contact parent servers
+much more often than they otherwise would,
+and will reduce the overall reliability of DNS.
+You should omit 
+.I ip
+if 
+.I x
+has IP addresses assigned elsewhere in 
+.IR data ;
+in this case,
+.B tinydns-data
+will omit the A or AAAA record.
+.TP 4
+=>
+.RI &fqdn\fR|\fIip\fR|\fIx\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+Name server for domain
+.IR fqdn .
+
+.B tinydns-data
+creates
+.IP
+an NS record
+showing 
+.IR x\fR.ns.\fIfqdn\fR
+as a name server for 
+.I fqdn
+and
+.P
+.IP
+an A record 
+.I ip
+as IPv4 or an AAAA record showing
+.I ip
+as the IPv6 address
+of
+.IR x\fR.ns.\fIfqdn\fR .
+.P
+
+If
+.I x
+contains a dot
+then it is treated specially; see above.
+
+You may have several name servers for one domain,
+with a different
+.I x
+for each server.
+
+Normally
+.I &
+is used
+for domains delegated by this server to child servers,
+while
+.I .
+is used for domains delegated to this server.
+.TP 4
+=> 
+.RI =fqdn\fR|\fIip\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+.TP 4
+=>
+.RI :fqdn\fR|\fIip\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+Host
+.I fqdn
+with IPv4 or IPv6 address 
+.IR ip  
+depending, whether the first character is
+.I = 
+or 
+.IR : .
+
+.B tinydns-data
+creates
+.IP
+an A or AAAA record showing 
+.I ip
+as
+the IPv4 or IPv6  address of 
+.I fqdn
+and
+.P
+.IP
+a PTR record showing 
+.I fqdn
+as
+the name of 
+.IR d.c.b.a .in-addr.arpa
+if 
+.I ip
+is 
+.IR a.b.c.d .
+For IPv6 addresses the PTR record
+.I fqdn
+is provided 
+as 
+.IR f.e.d ...2.ip6.arpa
+in case the IPv6 address looks like
+.IR 2....:def .
+.P
+
+Remember to specify name servers for some suffix of
+.IR fqdn ;
+otherwise 
+.BR tinydns 
+will not respond
+to queries about
+.IR fqdn .
+The same comment applies to other records described below.
+Similarly, remember to specify name servers for some suffix of
+.I d.c.b.a.in-addr.arpa 
+ or 
+.I f.e.d....2.ip6.arpa 
+if that domain has been delegated to you.
+.TP 4
+=> 
+.RI +fqdn\fR|\fIip\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+.TP 4
+=>
+.RI ~fqdn\fR|\fIip\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+Alias
+.I fqdn
+with IPv4 address 
+.IR ip 
+in case the first character is 
+.I +
+or an IPv6 address if 
+.I ~
+is supplied.
+This is just like 
+=fqdn\fR|\fIip\fR|\fIttl\fR
+except that 
+.B tinydns-data
+does not create the PTR record.
+
+.BR tinydns 
+returns addresses
+(from
+.I +
+or
+.I =
+or
+.I @
+or
+.I .
+or
+.I &
+or
+.I :
+or
+.I ~
+lines)
+in a random order in the answer section.
+
+If there are more than 8 records,
+it returns a random set of 8.
+.TP 4
+=>
+.RI @fqdn\fR|\fIip\fR|\fIx\fR|\fIdist\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+Mail exchanger for 
+.IR fqdn .
+
+.B tinydns-data
+creates
+.IP
+an MX record
+showing 
+.IR x\fR.mx.\fIfqdn\fR
+as a mail exchanger for 
+.I fqdn
+at distance 
+.I dist
+and
+.P
+.IP
+an A or AAAA record showing 
+.I ip
+as the IPv4 or IPv6 address
+of 
+.IR x\fR.mx.\fIfqdn\fR.
+.P
+You may omit 
+.IR dist ;
+the default distance is 0.
+
+If 
+.I x
+contains a dot
+then it is treated specially; see above.
+
+You may create several MX records for 
+.IR fqdn ,
+with a different 
+.I x
+for each server.
+Make sure to arrange for the SMTP server on each IP address
+to accept mail for 
+.IR fqdn .
+.TP 4
+=>
+.RI # comment
+.RE
+
+Comment line. The line is ignored.
+.SH Uncommon data lines
+.TP 4
+=>
+.RI -fqdn\fR|\fIs\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+This type of line is used by
+programs that automatically edit
+.B +
+lines in
+.I data
+to temporarily exclude addresses of overloaded or dead machines.
+The line is ignored.
+.TP 4
+=>
+.RI 'fqdn\fR|\fIs\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+TXT record for 
+.IR fqdn .
+
+.B tinydns-data
+creates 
+.IP
+a TXT record for 
+.I fqdn
+containing the string 
+.IR s .
+.P
+Printable ASCII characters - including white spaces - are accepted unaltered.
+.TP 4
+=> 
+.RI Dfqdn\fR|\fIpubkey\fR|\fIselector\fR|\fIsigalg\fR|\fIhash\fR|\fIservice\fR|\fItype\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+DKIM TXT record for
+.IR fqdn .
+
+.B tinydns-data
+creates 
+.IP
+a DKIM TXT record according to RFC 6376 for
+.IR fqdn .
+.P
+.I pubkey
+is the representation of the public key while
+.P
+.I selector
+is the optional domain selector prepending
+.I _domainkey
+as additional label (mainly for key roll-over) yielding
+.IR selector._domainkey.fqdn .
+.P
+.I sigalg
+is the optional signature algorithim defaulting
+to
+.I rsa
+while
+.P
+.I hash
+is the given hash algorithm for the signature 
+defaulting to
+.I sha256
+but could be 
+.I sha1 
+instead.
+.P
+.I service
+covers the Internet service the DKIM signature is 
+used for. Typical values are
+.IR *\ (all\ services)
+while
+.I email 
+could be possible as well.
+.P
+.I type
+is the optional type tag.
+.TP 4
+=>
+.RI _fqdn\fR|\fIu\fR|\fIs\fR|\fIfingerprint\fR|\fIx\fR|\fIport\fR|\fIproto\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+TLSA record for 
+.IR fqdn .
+
+.B tinydns-data
+creates 
+.IP
+a TLSA record according to RFC 6698/7218/7671 for 
+.IR fqdn .
+.P
+.I u
+denotes its usage and
+.I s
+the provided selector.
+In case 
+.I s\ =\ 0
+is set, the fingerprint covers the full
+X.509 certificate, while for
+.I s\ =\ 1
+it is the hash of the public key (Subject Public Key Info) SPKI.
+Note: According to RFC 6698 `plain` X.509 certs shall not be 
+used here; though 
+.I tinydns
+allows this in principal.
+
+.B tinydns
+defaults to
+.I u\ =\ 3 
+and
+.IR s\ =\ 0 ,
+thus they don't need to be provided.
+The required TLSA matching 
+.I type
+parameter is automatically calculated from the fingerprint's length.
+
+The TLSA base domain is synthesized from the values
+.IR fqdn ,
+.IR x ,
+.I proto
+and  
+.IR port
+yielding a final domain name
+.IR _port._proto.x.fqdn .
+In case those values are missing, automatically the 
+following entry is generated:
+.IR _25._tcp.mail.fqdn .
+However, a typical choice for 
+.I x 
+is 
+.I a.mx
+or
+.IR b.mx .
+If 
+.I x
+starts with
+.I _
+it is taken unaltered prepending
+.IR fqdn .
+.TP 4
+=> 
+.RI ^fqdn\fR|\fIp\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+PTR record for 
+.IR fqdn .
+
+.B tinydns-data
+creates
+.IP
+a PTR record for
+.I fqdn
+pointing to the domain name 
+.IR p .
+.P
+.TP 4
+=>
+.RI Cfqdn\fR|\fIp\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+CNAME record for 
+.IR fqdn .
+
+.B tinydns-data
+creates 
+.IP
+a CNAME record for 
+.I fqdn
+pointing to the domain name 
+.IR p .
+.P
+Don't use
+.I Cfqdn
+if there are any other records for
+.I fqdn
+Don't use
+.I fqdn
+for common aliases;
+use
+.I +fqdn
+instead.
+Remember the wise words of Inigo Montoya:
+``You keep using CNAME records.
+I do not think they mean what you think they mean.'' and 
+those ones of Donald Trump: ``Don't propagate fake news.''
+.TP 4
+=> 
+.RI Zfqdn\fR|\fImname\fR|\fIrname\fR|\fIser\fR|\fIref\fR|\fIret\fR|\fIexp\fR|\fImin\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+.B tinydns-data
+creates
+.IP
+a SOA record for 
+.I fqdn
+showing 
+.I mname
+as the primary name server,
+.IR rname .
+.P
+
+Here, the first 
+.I .
+is converted to 
+.IR @ 
+as the contact address,
+.I ser
+as the serial number,
+.I ref
+as the refresh time,
+.I ret
+as the retry time,
+.I exp
+as the expire time, and
+.I min
+as the minimum time.
+.IR ser ,
+.IR ref ,
+.IR ret ,
+.IR exp ,
+and
+.I min
+may be omitted;
+they default to, respectively,
+the modification time of the 
+.I data
+file,
+16384 seconds,
+2048 seconds,
+1048576 seconds, and
+2560 seconds.
+.TP 4
+=>
+.RI Ofqdn\fR|\fIn\fR|\fIrdata\fR|\fIttl\fR|\fItimestamp\fR|\fIlo\fR
+.RE
+
+Generic record for
+.IR fqdn .
+
+.B tinydns-data
+creates 
+.IP
+a record of type 
+.I n
+for 
+.I fqdn
+showing 
+.IR rdata .
+.P
+
+.I n
+must be an integer between 1 and 65535.
+The proper format of
+.I rdata
+depends on 
+.IR n .
+You may use octal 
+.I nnn
+codes
+to include arbitrary bytes inside 
+.IR rdata .
+.SH WILDCARDS
+.I tinydns
+supports wildcards of the form 
+.IR *.fqdn .
+Information for 
+.I *.fqdn
+is provided for every name ending with 
+.IR .fqdn ,
+.I except
+names that have their own records
+and names that are covered by more specific wildcards.
+
+For example, the lines
+
+.EX
+	+pink.floyd.u.heaven.af.mil|1.2.3.4
+	+*.u.heaven.af.mil|1.2.3.200
+.EE
+
+have the same effect as
+
+.EX
+	+pink.floyd.u.heaven.af.mil|1.2.3.4
+	+joe.u.heaven.af.mil|1.2.3.200
+	+bill.u.heaven.af.mil|1.2.3.200
+	+floyd.u.heaven.af.mil|1.2.3.200
+	+ishtar.u.heaven.af.mil|1.2.3.200
+	+joe.bob.u.heaven.af.mil|1.2.3.200
+	+sally.floyd.u.heaven.af.mil|1.2.3.200
+	+post.pink.floyd.u.heaven.af.mil|1.2.3.200
+.EE
+
+and so on.
+.SH "Example for data file"
+Here is a typical 
+.I data
+file:
+
+.EX
+	=lion.heaven.af.mil|1.2.3.4
+	@heaven.af.mil|1.2.3.4
+	@3.2.1.in-addr.arpa|1.2.3.4
+	@heaven.af.mil|2001::25
+
+	# IPv6 declarations
+	:lion.heaven.af.mil|2001:fefe::123a
+	@heaven.af.mil|2001:fefe::25
+	~www.af.mil|2001:fefe::123a
+
+	=tiger.heaven.af.mil|1.2.3.5
+	\.heaven.af.mil|1.2.3.5|a
+	\.3.2.1.in-addr.arpa|1.2.3.5|a
+
+	=bear.heaven.af.mil|1.2.3.6
+	\.heaven.af.mil|1.2.3.6|b
+	\.3.2.1.in-addr.arpa|1.2.3.6|b
+
+	=cheetah.heaven.af.mil|1.2.3.248
+	=panther.heaven.af.mil|1.2.3.249
+.EE
+
+Here is the same information in traditional zone-file format
+(with the two zones merged):
+
+.EX
+  heaven.af.mil. 2560 IN SOA a.ns.heaven.af.mil. hostmaster.heaven.af.mil. ...
+  heaven.af.mil. 259200 IN NS a.ns.heaven.af.mil.
+  heaven.af.mil. 259200 IN NS b.ns.heaven.af.mil.
+  heaven.af.mil. 86400 IN MX mx.heaven.af.mil.
+
+  3.2.1.in-addr.arpa. 2560 IN SOA a.ns.3.2.1.in-addr.arpa. hostmaster.3.2.1.in-addr.arpa. ...
+  3.2.1.in-addr.arpa. 259200 IN NS a.ns.3.2.1.in-addr.arpa.
+  3.2.1.in-addr.arpa. 259200 IN NS b.ns.3.2.1.in-addr.arpa.
+  3.2.1.in-addr.arpa. 86400 IN MX mx.3.2.1.in-addr.arpa.
+
+  4.3.2.1.in-addr.arpa. 86400 IN PTR lion.heaven.af.mil.
+  lion.heaven.af.mil. 86400 IN A 1.2.3.4
+  mx.heaven.af.mil. 86400 IN A 1.2.3.4
+  mx.3.2.1.in-addr.arpa. 86400 IN A 1.2.3.4
+
+  5.3.2.1.in-addr.arpa. 86400 IN PTR tiger.heaven.af.mil.
+  tiger.heaven.af.mil. 86400 IN A 1.2.3.5
+  a.ns.heaven.af.mil. 259200 IN A 1.2.3.5
+  a.ns.3.2.1.in-addr.arpa. 259200 IN A 1.2.3.5
+
+  6.3.2.1.in-addr.arpa. 86400 IN PTR bear.heaven.af.mil.
+  bear.heaven.af.mil. 86400 IN A 1.2.3.6
+  b.ns.heaven.af.mil. 259200 IN A 1.2.3.6
+  b.ns.3.2.1.in-addr.arpa. 259200 IN A 1.2.3.6
+
+  248.3.2.1.in-addr.arpa. 86400 IN PTR cheetah.heaven.af.mil.
+  cheetah.heaven.af.mil. 86400 IN A 1.2.3.248
+
+  249.3.2.1.in-addr.arpa. 86400 IN PTR panther.heaven.af.mil.
+  panther.heaven.af.mil. 86400 IN A 1.2.3.249
+.EE
+.SH "DESIGN NOTES"
+The 
+.I data
+format is very easy for programs to edit,
+and reasonably easy for humans to edit,
+unlike the traditional zone-file format.
+
+.B tinydns-data
+could support a 
+.I name 
+wherever an IP address is required;
+it would look up the 
+.I name 
+in DNS and use the resulting address.
+This would reliably track changes in offsite IP addresses
+if the database were rebuilt periodically.
+.SH COMPATIBILTY
+The used
+.I data
+format differs from DJB's convention for the following declarations:
+.I : 
+is used as IPv6 address identifier, while
+.I O  
+is used as token for arbitrary data instead of ':'.
+Thus, apart from this special case, the resulting
+.I data.cdb
+is raw compatible; due to the different token delimitor however
+not in binary format. 
+Within the TXT mode "'" octal codes are not supported; 
+use octal representation 'O' instead.
+
+In contrast to Felix von Leitner's implementation,
+IPv6 addresses are always entered in their compactified format 
+and indicated by
+.I : 
+(instead of '6') or
+.I ~ 
+(instead of '3'). As a result, IPv6 addresses are not understood
+neither in binary nor in plain format.
+.SH "SEE ALSO"
+tinydns(8), 
+tinydns-edit(8), 
+tinydns-conf(8), 
+walldns(8)
+.SH REFERENCE
+http://cr.yp.to/djbdns/faq/tinydns.html

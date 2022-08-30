@@ -1,0 +1,1 @@
+#daemon|logger|/var/service/walldns|192.168.0.1

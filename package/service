@@ -1,0 +1,49 @@
+#!/bin/sh
+
+shout() { echo "${0}: $@" >&2; }
+barf() { shout "fatal: $@"; exit 111; }
+safe() { "$@" || barf "cannot $@"; }
+
+safe umask 022
+here=`env - PATH=$PATH pwd`
+mypwd=${here%package}
+mypwd=${mypwd%/}
+home=`head -1 $mypwd/conf-home`
+services="conf-dnscache conf-tinydns conf-rbldns conf-walldns"
+
+# Walks thru all configured services
+
+for service in `echo ${services}`
+do 
+  service_base=""
+  disabled=0
+  ipok=0
+  service_id=`echo ${service}| awk -F'-' '{print $NF}'`
+  [ "X${service_id}" != "X" ] || barf "No service given for ${service}"
+  service_user=`head -1 ${service} | awk -F'|' '{print $1}'`
+  [ "X${service_user}" != "X" ] || barf "No service user given for ${service}"
+  service_logger=`head -1 ${service} | awk -F'|' '{print $2}'`
+  [ "X${service_logger}" != "X" ] || barf "No service log user given for ${service}"
+  service_dir=`head -1 ${service} | awk -F'|' '{print $3}'`
+  [ "X${service_dir}" != "X" ] || barf "No service dir given for ${service}"
+  service_ip=`head -1 ${service} | awk -F'|' '{print $4}'`
+  [ "X${service_ip}" != "X" ] || barf "No service IP given for ${service}"
+  service_base=`head -1 ${service} | awk -F'|' '{print $5}'`
+ 
+  disabled=`echo ${service_user} | cut -c1 | grep -c '#'`
+  [ $disabled -eq 1 ] && shout "Skipping disabled service for: ${service}" && continue
+  ipok=`echo ${service_ip} | grep -c ":"`
+  [ $ipok -eq 0 ] && ipok=`echo ${service_ip} | grep -c "\."`
+  [ $ipok -eq 0 ] && shout "Skipping service with invalid ip address '${service_ip}' for: ${service}"
+
+  shout "Setting up ${service} with users ${service_user}/${service_logger} in ${service_dir} serving ${service_ip} ${service_base}"
+
+  [ `id -u ${service_user} 2> /dev/null` ] || shout "Prior of using ${service} generated the system user ${service_user}"
+  [ `id -u ${service_logger} 2> /dev/null` ] || shout "Prior of using ${service} generated the system log user ${service_logger}"
+
+  [ -d ${service_dir} ] && barf  "Service directory ${service_dir} is already existing for ${service} -- remove/rename it first!"
+
+  safe $mypwd/compile/${service_id}-conf ${service_user} ${service_logger} ${service_dir} ${service_ip} ${service_base}
+done
+
+exit 0

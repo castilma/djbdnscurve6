@@ -1,0 +1,7 @@
+/usr/share/man
+
+Top level directory for man pages instead of manpath
+
+/usr/local/man 
+
+could be an alternative

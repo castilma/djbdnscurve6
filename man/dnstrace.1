@@ -1,0 +1,83 @@
+.TH djbdnscurve6: dnstrace 1
+.SH NAME
+dnstrace \- dns lookup tool
+.SH SYNOPSIS
+.B dnstrace 
+.I t
+.I fqdn
+.I r
+.SH DESCRIPTION
+.B dnstrace
+searches for all DNS servers
+that can affect the resolution of records of type  
+.I t
+under the domain name 
+.IR fqdn ,
+starting from the root server
+.IR r .
+You can list more than one root server.
+
+.B dnstrace
+uses the standard DNS resolution algorithm,
+but follows all possible paths in the algorithm.
+It prints all responses it receives from DNS servers;
+it also prints warnings about slow servers, dead servers,
+misdelegated (``lame'') servers, and misformatted packets.
+.B dnstrace
+is similar in spirit to DOC and dnswalk
+but is much more effective than those tools at debugging resolution problems.
+
+You can pipe
+.B dnstrace
+through
+.BR dnstracesort 
+for human-friendly output.
+.B dnstrace
+can take a long time to run,
+so standard procedure is to save its output in a file:
+
+.EX
+  dnstrace any www.aol.com a.root-servers.net > AOL &
+.EE
+
+Then you can run
+.BR dnstracesort 
+to see the results so far:
+
+.EX
+  dnstracesort < AOL | less
+.EE
+
+The
+.BR dnstracesort 
+output uses
+.I ul
+codes
+for boldface and underline;
+these codes are displayed properly by
+.BR less .
+
+Beware that, as of February 2000,
+.B dnstrace
+produces half a megabyte of output
+for the complete trace of a typical 
+.I .com
+name
+starting from all the root servers.
+There are more than 200 computers around the world
+that can affect all 
+.I .com
+names.
+Including IPv6 address lookup (June 2018)
+the amount of output data is roughly doubled.
+.SH SEE ALSO
+dnsip(1),
+dnsipq(1),
+dnsmx(1),
+dnstxt(1),
+dnsqr(1),
+dnsq(1),
+dnsname(1),
+less(1)
+.SH REFERENCE
+http://cr.yp.to/djbdns.html

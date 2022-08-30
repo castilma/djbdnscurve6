@@ -1,0 +1,38 @@
+.TH djbdnscurve6: tinydns-get 8
+.SH NAME
+tinydns-get \- emulates a DNS query while reading from the local data.cdb
+.SH SYNOPSIS
+.B tinydns-get
+.I type 
+.I fqdn
+.I [ip]
+.SH DESCRIPTION
+.B tinydns-get
+behaves like 
+.B dnsq, 
+but obtains its results directly from 
+.I data.cdb 
+in the current directory in exactly the same way that 
+.B tinydns 
+and 
+.B axfrdns 
+obtain results from 
+.I data.cdb 
+in their root directories. 
+If 
+.I ip 
+is provided either as IPv4 or IPv address, 
+it simulates the results of a query originating from
+.IR ip . 
+This matters, if 
+.I data.cdb 
+differentiates among clients in different locations.
+.SH "SEE ALSO"
+axfrdns(8), 
+tinydns(8), 
+tinydns-data(8),
+tinydns-edit(8).
+.SH CREDITS
+This manual page is based on DJB's description.
+.SH REFERENCE
+https://cr.yp.to/djbdns/debugging.html

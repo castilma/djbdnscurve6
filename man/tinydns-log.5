@@ -1,0 +1,132 @@
+.TH djbdnscurve6: tinydns-log.5
+.SH NAME
+tinydns-log \- Format of the tinydns log
+.SH "LOG ENTRIES"
+During operation,
+.B tinydns
+writes the following log entry types:
+.TP 4
+o
+starting tinydns
+.TP 4
+o
+ip:port:id + type name
+.TP 4
+o
+ip:port:id - type name
+.TP 4
+o
+ip:port:id I type name
+.TP 4
+o
+ip:port:id C type name
+.TP 4
+o
+ip:port:0000 / 0000
+
+.RE 
+IP addresses, ports, ids, and query types are given in hexadecimal format.
+.SH DESCRIPTIONS
+.TP 4
+->
+starting tinydns listening on ip ... 
+.RE
+
+.B tinydns 
+logs this entry immediately before entering its receive/process/respond loop
+while telling on which IP it is bound.
+.TP 4
+->
+ip:port:id \fI+\fR type name
+.RE
+
+.B tinydns 
+attempted to respond to a request. 
+The attempt may have failed due to a network error, but such errors are not logged.
+
+.EX
+	Field	Meaning
+	ip		The IP address from which the request was received, 
+			and to which the response was sent.
+	port		The port number from which the request was received, 
+			and to which the response was sent.
+	id		The request id, which the client picks 
+			and the server includes in the response.
+	type		The type of records requested.
+	name		The domain name for which records were requested.
+.EE
+.TP 4
+->
+ip:port:id \fI-\fR type name
+.RE
+
+.B tinydns 
+dropped a request because it did not have the authority to answer. 
+It only has the authority to answer if it has an SOA record for name or a suffix of name. 
+ Note that if it is unable to open the \fIdata.cdb\fR file, it will have no authority for any domain.
+The fields have the same meanings as in the \fI+\fR log entry.
+.TP 4
+->
+ip:port:id \fII\fR type name
+.RE
+
+.B tinydns 
+received a request that it does not implement, 
+or that had invalid bits set in the header, 
+so it responded with an \fIrcode\fR of 4 (NOTIMP). 
+For example, if the client asks 
+.B tinydns 
+to perform a recursive query, 
+or any type of query except a standard query, then 
+.B tinydns 
+creates this type of log entry and responds with a NOTIMP answer.
+The fields have the same meanings as in the \fI+\fR log entry.
+.TP 4
+->
+ip:port:id \fIC\fR type name
+.RE
+
+.B tinydns 
+received a query for a class other than IN (Internet) or 255, 
+so it responded with an \fIrcode\fR of 1 (FORMERR). Class 255 means "any class".
+The fields have the same meanings as in the \fI+\fR log entry. 
+Note that the actual class in the query is not logged, 
+so there is no reliable way to decode the meaning of the type field.
+.TP 4
+->
+ip:port:0000 \fI/\fR 0000 .
+.RE
+
+.B tinydns 
+received a request packet that either contained no query, 
+contained more than one query, or otherwise could not be parsed. 
+.B tinydns 
+dropped the request.
+The \fIip\fR and \fIport\fR fields have the same meanings as in the \fI+\fR log entry. 
+The other field values are hardcoded.
+.SH "DNSCURVE MODE"
+In case 
+.B tinydns
+is
+.I DNSCurve
+enabled while providing the required public and private key,
+prior upon start, it shows up with the message
+.IR tinydns:\ info:\ DNSCurve\ support\ enabled .
+.I DNSCurve
+responses are now logged via
+.TP 4
+->
+ip:port:id \fI*\fR type name
+.RE
+
+Reversely, dropped requests are given as
+.TP 4
+->
+ip:port:id \fI~\fR type name
+.RE
+.SH "SEE ALSO"
+tinydns(8),
+tinydns-conf(8)
+.SH "REFERENCE"
+http://www.dqd.com/~mayoff/notes/djbdns/tinydns-log.html
+(used by permission)

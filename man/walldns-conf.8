@@ -1,0 +1,82 @@
+.TH djbdnscurve6: walldns-conf 8
+.SH NAME
+walldns-conf \- sets up a DNS wall service
+.SH SYNOPSIS
+walldns-conf 
+.I acct
+.I logacct
+.I D
+.I ip
+.SH DESCRIPTION
+.B walldns-conf
+creates a service directory 
+.I D
+that runs
+.BR walldns .
+The name 
+.I D
+must start with a slash
+and must not contain any special characters.
+Normally 
+.I D
+is 
+.IR /var/service/walldns .
+
+You can run the service under
+.B svscan 
+by creating a symbolic link in the 
+.B svscan 
+directory:
+
+ln -s 
+.I D
+/service
+
+The service will start within five seconds,
+and will be restarted upon reboot.
+You can use
+.B svc 
+to control the service.
+
+.B walldns-conf
+arranges for 
+.I walldns
+to chroot to 
+.IR D /root
+and to run under the uid and gid of
+.IR acct .
+The name
+.I acct
+must not contain any special characters.
+
+.B walldns-conf
+arranges for 
+.B walldns 
+to listen for UDP packets on port 53 of 
+.IR ip ,
+and to send outgoing packets from
+.IR ip .
+
+.B walldns-conf
+creates an automatically rotated log directory in
+.IR D /log/main.
+The logs are owned by 
+.IR logacct .
+The corresponding 
+.B multilog 
+processes run under the uid and gid of 
+.IR logacct .
+The name
+.I logacct
+must not contain any special characters.
+.SH "SEE ALSO"
+walldns (8),
+svsca n(8),
+svc (8),
+multilog (8),
+axfrdns-conf (8),
+rbldns-conf (8),
+tinydns-conf (8),
+dnscache-conf (8)
+.SH REFERENCE
+http://cr.yp.to/djbdns.html

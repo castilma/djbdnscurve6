@@ -1,0 +1,74 @@
+.TH djbdnscurve6: curvedns-keygen 8
+.SH NAME
+curvedns-keygen \- generate CuveDNS public and private key
+.SH SYNOPSIS
+.B curvedns-keygen
+.SH DESCRIPTION
+.B curvedns-keygen
+creates a pair of CurveDNS public and private keys
+in the directory
+.I ./env 
+used by 
+.BR tinydns ,
+.BR rbldns
+and/or
+.B walldns
+in their own environment setup by
+.BR tinydns-conf ,
+.BR rbldns-conf
+and/or
+.BR walldns-conf .
+
+The public key is given as file name
+.I uz5.....
+including the hexadecimal public key
+as content.
+
+The private key is binary stored in 
+.IR CURVEDNS_PRIVATE_KEY .
+This file is read by the 
+respective servers to answer 
+.I DNSCurve
+encrypted queries and replying to those 
+guaranteeing the confidentiality of the
+exchanged DNS messages.
+.SH USAGE
+Upon call of 
+.B curvedns-keygen 
+both the public and the private key are 
+generated, stored, and displayed together
+with their hexademcimal values on the console. 
+The last step can be avoided 
+(for automatic generation)
+directing the output to
+.IR /dev/null .
+New keys require to remove the previous keys
+before, thus they are not overwritten.
+
+The file
+.I CURVEDNS_PRIVATE_KEY
+should be readable 
+.I ONLY 
+by the servers which can be achieved 
+while generating those as root user.
+
+The public key
+.I uz5.....
+needs to be delegated as your name server's
+primary hostname to the superior name server
+together with the server's IPv4 and/or 
+IPv6 address (glue) in order to serve as 'trust anchor'.
+.SH RETURN CODED
+.B curvedns-keygen
+exits
+.I 0
+in case the keys have been generated and
+.I 100
+if errors during generation were encountered.
+Error code 
+.I 99 
+indicate memory errors.
+.SH SEE ALSO
+tinydns-conf(8),
+rbldns-conf(8),
+walldns-conf(8)

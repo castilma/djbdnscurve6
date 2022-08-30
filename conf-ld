@@ -1,0 +1,3 @@
+cc -s -L`head -1 ../conf-qlibs` -L`grep lib ../conf-nacl | head -1`
+
+This will be used to link .o files into an executable.
