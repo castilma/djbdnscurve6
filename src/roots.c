@@ -81,12 +81,13 @@ static int init2(DIR *dir)
     }
 
     if (d->d_name[0] != '.') {
-      if (openreadclose(d->d_name,&text,QUERY_MAXNS) != 1) return 0;
-      if (!stralloc_append(&text,"\n")) return 0;
-
       fqdn = d->d_name;
       if (str_equal(fqdn,"@")) fqdn = ".";
+      else if (env_get("FORWARDONLY")) continue; // ignore all files but "@" as documented
       if (dns_domain_fromdot(&q,fqdn,str_len(fqdn)) <= 0) return 0;
+
+      if (openreadclose(d->d_name,&text,QUERY_MAXNS) != 1) return 0;
+      if (!stralloc_append(&text,"\n")) return 0;
 
       serverslen = 0;
       j = 0;
