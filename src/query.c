@@ -455,6 +455,11 @@ static int doit(struct query *z,int state)
     return 1;
   }
 
+  /* .onion TLD RFC 7686 */
+
+  if (dns_domain_suffix(d,"\05onion\0"))
+    goto NXDOMAIN;
+
   /* special names done */
 
   if (dlen <= LABLEN) {
