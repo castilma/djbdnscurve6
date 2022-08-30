@@ -77,6 +77,7 @@ static int init2(DIR *dir)
     d = readdir(dir);
     if (!d) {
       if (errno) return 0;
+      if (text.s) {free(text.s); text.s = 0;}
       return 1;
     }
 
