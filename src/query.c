@@ -460,6 +460,14 @@ static int doit(struct query *z,int state)
   if (dns_domain_suffix(d,"\05onion\0"))
     goto NXDOMAIN;
 
+  /* Reverse lookup for locally assigned IPv6 addresses (FD00::/8) RFC 4193 */
+
+  if (typematch(DNS_T_PTR,dtype) &&
+      dns_domain_suffix(d,"\01d\01f\03ip6\04arpa\0") &&
+      roots_same(d,"\0") &&
+      !flagforwardonly) // the cache we'll ask might know a proper NS
+    goto NXDOMAIN;
+
   /* special names done */
 
   if (dlen <= LABLEN) {
