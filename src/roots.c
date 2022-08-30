@@ -92,13 +92,13 @@ static int init2(DIR *dir)
       j = 0;
       for (i = k = 0; i < text.len; ++i)
         if (text.s[i] == '\n') {
-          if (serverslen <= 60)
+          if (serverslen <= QUERY_MAXIPLEN - 16)
             if (ip6_ifscan(text.s +  j,servers + serverslen,&ifname)) {
               serverslen += 16; /* all constant IPv6 addresses */
               scope_ids[k] = socket_getifidx(ifname.s); k++;
             }
-        j = i + 1;
-      }
+          j = i + 1;
+        }
       byte_zero(servers + serverslen,QUERY_MAXIPLEN - serverslen);
 
       if (!stralloc_catb(&data,q,dns_domain_length(q))) return 0;
