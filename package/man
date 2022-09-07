@@ -73,7 +73,7 @@ do
   [ -d $mandir/$dir ] || safe mkdir $mandir/$dir
   if [ $usemandoc -eq 0 ]
   then
-    safe gzip $manfile && \
+    safe gzip -kf $manfile && \
          install -m 644 "$manfile.gz" $mandir/$dir/"${manfile#*/}.gz"
   else
     safe install -m 644 $manfile $mandir/$dir/${manfile#*./}
